@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BoardRecord } from '../types.ts'
 import { timestampName } from '../board-name.ts'
+import { matchesBoard } from '../board-filter.ts'
 import { renderBoardPreview } from './board-preview.ts'
 import css from './WhiteboardPanel.module.css'
 
@@ -11,6 +12,8 @@ export interface WhiteboardFace {
   preview(id: string): Promise<string | null>
   remove(id: string, expectedUpdatedAt: number): Promise<void>
   open(board: BoardRecord): Promise<void>
+  /** Return to the board being edited before this page was left; `none` keeps the gallery. */
+  restore(): Promise<'reopened' | 'focused' | 'none'>
 }
 type Props = PropsLocale<'whiteboard'> & InjectFace<WhiteboardFace>
 
@@ -58,7 +61,33 @@ function BoardPreview({ board, load, t }: { board: BoardRecord; load: Whiteboard
   </span>
 }
 
-export function WhiteboardPanel({ list, create, preview, remove, open, t }: Props) {
+type BoardListProps = {
+  boards: BoardRecord[]
+  shown: BoardRecord[]
+  busy: boolean
+  t: Props['t']
+  load: WhiteboardFace['preview']
+  onOpen: (board: BoardRecord) => void
+  onDelete: (board: BoardRecord) => void
+}
+
+function BoardList({ boards, shown, busy, t, load, onOpen, onDelete }: BoardListProps) {
+  if (boards.length === 0) return <div className={css.empty}><strong>{t('empty')}</strong><span>{t('emptyHint')}</span></div>
+  if (shown.length === 0) return <div className={css.empty} role="status"><strong>{t('searchNoResults')}</strong><span>{t('searchNoResultsHint')}</span></div>
+  return <ul className={css.grid}>{shown.map(board => <li key={board.id} className={css.card}>
+    <button type="button" className={css.cardOpen} onClick={() => onOpen(board)} disabled={busy} aria-label={`${t('open')}: ${board.title}`}>
+      <strong className={css.cardTitle}>{board.title}</strong>
+      <BoardPreview board={board} load={load} t={t} />
+      <span className={css.cardFooter}>{t('modified')}: {when(board.updatedAt)}</span>
+    </button>
+    <button type="button" className={css.deleteMark} disabled={busy} onClick={() => onDelete(board)}
+      aria-label={`${t('delete')}: ${board.title}`} title={t('delete')}>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15" /></svg>
+    </button>
+  </li>)}</ul>
+}
+
+export function WhiteboardPanel({ list, create, preview, remove, open, restore, t }: Props) {
   const [boards, setBoards] = useState<BoardRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -67,7 +96,14 @@ export function WhiteboardPanel({ list, create, preview, remove, open, t }: Prop
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState('')
   const [pendingDelete, setPendingDelete] = useState<BoardRecord | null>(null)
+  const [query, setQuery] = useState('')
   const generation = useRef(0)
+  /** Whether this mount already tried to return to the board that was open. */
+  const restored = useRef(false)
+
+  // Title search stays local: the gallery is already loaded in memory, so
+  // filtering never issues another remote call.
+  const shown = useMemo(() => boards.filter(board => matchesBoard(board, query)), [boards, query])
 
   const refresh = useCallback(async () => {
     const current = ++generation.current
@@ -87,6 +123,17 @@ export function WhiteboardPanel({ list, create, preview, remove, open, t }: Prop
     void refresh()
     return () => { generation.current++ }
   }, [refresh])
+
+  // Coming back to this page should land on the board that was being edited, not
+  // on the gallery. The first pass still has no rows, so wait for the first load
+  // to settle; one attempt per mount is enough — the user can always pick a card.
+  // A restore that is still running when the page is left stays harmless: it can
+  // only reveal the board the user was already editing.
+  useEffect(() => {
+    if (restored.current || loading) return
+    restored.current = true
+    void restore().catch(() => { /* the gallery stays usable; the next visit tries again */ })
+  }, [boards, loading, restore])
 
   const showCreate = () => {
     setName(timestampName(new Date(), t('defaultNamePrefix')))
@@ -152,22 +199,21 @@ export function WhiteboardPanel({ list, create, preview, remove, open, t }: Prop
         <button type="button" className={css.primary} disabled={busy} onClick={showCreate}>{t('add')}</button>
       </header>
       <div className={css.toolbar}>
+        <div className={css.searchBox} role="search">
+          <input type="search" value={query} maxLength={100} disabled={loading}
+            placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')}
+            onChange={event => setQuery(event.target.value)} />
+          {query !== '' && <button type="button" className={css.searchClear} title={t('clearSearch')}
+            aria-label={t('clearSearch')} onClick={() => setQuery('')}>×</button>}
+        </div>
         <button type="button" className={css.refresh} onClick={() => void refresh()} disabled={loading}>{t('refresh')}</button>
       </div>
       {error && <div className={css.error} role="alert">{t('error')}: {error} <button type="button" onClick={() => void refresh()}>{t('retry')}</button></div>}
       {loading ? <p className={css.placeholder} role="status">{t('loading')}</p>
-        : boards.length === 0 ? <div className={css.empty}><strong>{t('empty')}</strong><span>{t('emptyHint')}</span></div>
-          : <ul className={css.grid}>{boards.map(board => <li key={board.id} className={css.card}>
-            <button type="button" className={css.cardOpen} onClick={() => void openBoard(board)} disabled={busy} aria-label={`${t('open')}: ${board.title}`}>
-              <strong className={css.cardTitle}>{board.title}</strong>
-              <BoardPreview board={board} load={preview} t={t} />
-              <span className={css.cardFooter}>{t('modified')}: {when(board.updatedAt)}</span>
-            </button>
-            <button type="button" className={css.deleteMark} disabled={busy} onClick={() => setPendingDelete(board)}
-              aria-label={`${t('delete')}: ${board.title}`} title={t('delete')}>
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15" /></svg>
-            </button>
-          </li>)}</ul>}
+        : <div aria-live="polite">
+          <BoardList boards={boards} shown={shown} busy={busy} t={t} load={preview}
+            onOpen={board => void openBoard(board)} onDelete={setPendingDelete} />
+        </div>}
     </div>
     {createOpen && <div className={css.backdrop} role="presentation">
       <section className={css.dialog} role="dialog" aria-modal="true" aria-labelledby="whiteboard-create-title"

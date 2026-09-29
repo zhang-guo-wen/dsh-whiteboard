@@ -13,6 +13,7 @@ describe('whiteboard client registration', () => {
       locale: { register: () => () => {}, bind: () => (key: string) => key },
       get: () => ({ createBoard: async () => { creates++; return { ok: true, value: {} } } }),
       sidebarRightTabs: { get: () => undefined },
+      sidebarRight: { registerCloseHandler: () => () => {} },
       slots: {
         inject: (_name: string, effect: () => void) => effect(),
         register: (options: { name: string; inject?: () => WhiteboardFace }) => {
@@ -30,9 +31,16 @@ describe('whiteboard client registration', () => {
     let face: WhiteboardFace | undefined
     const openings: Array<{ address: string; kind: string }> = []
     const calls: Array<{ method: string; args: unknown[] }> = []
+    const sessionOpens: string[] = []
     let fullscreenCount = 0
     const previousWindow = globalThis.window
+    const previousDocument = globalThis.document
     Object.assign(globalThis, { window: { innerWidth: 1200, setTimeout, clearTimeout } })
+    // A wide frame with the editor's panel element on screen: the board takes the
+    // whole frame so draw.io keeps its own left palette and right format panel.
+    Object.assign(globalThis, {
+      document: { querySelectorAll: () => [{ dataset: { sidebarRightSession: 'session-1', sidebarRightPanel: 'normal' } }] },
+    })
     try {
       const board = { id: '2026-09-29_09-46-00-000.drawio', title: '2026-09-29_09-46-00-000', path: 'C:\\plugin\\files\\2026-09-29_09-46-00-000.drawio', directory: 'C:\\plugin\\files', updatedAt: 1 }
       const ctx = {
@@ -47,13 +55,14 @@ describe('whiteboard client registration', () => {
           grantBoardSession: async (...args: unknown[]) => { calls.push({ method: 'grantBoardSession', args }); return { ok: true, value: undefined } },
         }),
         sessions: { list: { getSnapshot: () => ({ byId: {} }) }, create: async (options: unknown) => { calls.push({ method: 'sessionCreate', args: [options] }); return 'session-1' } },
-        uiWorkspace: { openSession: () => {} },
+        uiWorkspace: { openSession: (id: string) => { sessionOpens.push(id) } },
         sidebarRightTabs: { get: () => ({ kind: 'drawio-edit' }) },
         sidebarRight: {
           mounted: { getSnapshot: () => 'session-1', subscribe: () => () => {} },
           openResource: (address: string, options: { kind: string }) => openings.push({ address, kind: options.kind }),
           commandTarget: () => ({ paneId: 'pane-1' }),
           toggleFullscreen: () => { fullscreenCount++ },
+          registerCloseHandler: () => () => {},
         },
         slots: {
           inject: (_name: string, effect: () => void) => effect(),
@@ -79,9 +88,12 @@ describe('whiteboard client registration', () => {
       expect(openings).toHaveLength(1)
       expect(openings[0]?.kind).toBe('drawio-edit')
       expect(openings[0]?.address).toContain('2026-09-29_09-46-00-000.drawio')
+      // The editor column already shows this Session, so the board opens without
+      // navigating the middle column away from the gallery.
+      expect(sessionOpens).toEqual([])
       expect(fullscreenCount).toBe(1)
     } finally {
-      Object.assign(globalThis, { window: previousWindow })
+      Object.assign(globalThis, { window: previousWindow, document: previousDocument })
     }
   })
 })
