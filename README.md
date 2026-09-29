@@ -8,8 +8,10 @@ Install and enable [`@guowenzhang/dsh-drawioedit`](../dsh-drawioedit) first, the
 
 ```sh
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-drawioedit
-npx @deepseek-ai/dsh plugin --profile web add /absolute/path/to/dsh-whiteboard
+npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-whiteboard
 ```
+
+From the npm registry: <https://www.npmjs.com/package/@guowenzhang/dsh-whiteboard> — restart the host afterwards; local checkouts, git sources and troubleshooting are in [AGENTS.md](AGENTS.md).
 
 Restart DSH Web and open **Whiteboards** in the left navigation. **New whiteboard** first opens a dialog with an editable timestamp-based name. Only **Create** writes the `.drawio` file under the plugin's `files/` directory and opens it in drawioedit. Drawioedit autosaves changes. Each card shows its name, a first-page preview, and last modification time. Click the card to edit, or click the top-right X and confirm to delete the file. Oversized or unreadable diagrams show a preview placeholder. On desktop the right Sidebar expands to fullscreen; narrow screens use its automatic fullscreen mode.
 

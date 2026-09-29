@@ -8,8 +8,10 @@ DeepSeek Harness Web 白板插件，在主面板显示白板卡片，并通过 d
 
 ```sh
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-drawioedit
-npx @deepseek-ai/dsh plugin --profile web add /absolute/path/to/dsh-whiteboard
+npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-whiteboard
 ```
+
+来自 npm 官方源：<https://www.npmjs.com/package/@guowenzhang/dsh-whiteboard>。装完重启宿主；本地目录开发安装、git 源与排查见 [AGENTS.md](AGENTS.md)。
 
 重启 DSH Web 后，打开左侧导航中的“白板”。点击“新建白板”会先显示命名对话框，默认填入时间名称，可直接修改；只有点击“确认创建”才会在插件 `files/` 目录创建 `.drawio` 文件并交给 drawioedit 打开。绘图内容由 drawioedit 自动保存。卡片显示名称、第一页缩略图和最近修改时间；点击卡片可继续编辑，点击右上角叉号并确认可删除文件。过大或无法解析的图表显示预览占位内容。桌面端会将右侧侧边栏展开为全屏，窄屏由侧边栏自动全屏。
 
