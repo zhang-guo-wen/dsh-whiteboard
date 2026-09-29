@@ -1,0 +1,5 @@
+node_modules/
+*.tgz
+.temp-harness-home/
+/files/*
+!/files/README.md

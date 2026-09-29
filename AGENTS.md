@@ -1,0 +1,3 @@
+# dsh-whiteboard
+
+Independent DeepSeek Harness plugin. The browser proposes an editable timestamp-based name, then the host creates the `.drawio` file under this plugin's `files/` directory only after confirmation. The browser previews the first page in each card and opens files in a dedicated session through `@guowenzhang/dsh-drawioedit`; drawioedit owns autosaving. Keep visible copy in `src/client/locales.ts`. Install with `npm ci --legacy-peer-deps` because the published drawioedit peer tree conflicts with the current DSH dev dependencies. Rebuild the tracked `lib/` after source changes; run `npm run typecheck`, `npm test`, and `npm run build`.

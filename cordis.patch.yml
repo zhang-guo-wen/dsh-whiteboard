@@ -1,0 +1,3 @@
+- insert:
+    - id: whiteboard
+      name: '@guowenzhang/dsh-whiteboard'
