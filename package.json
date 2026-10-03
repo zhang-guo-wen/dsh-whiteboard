@@ -1,7 +1,7 @@
 {
   "name": "@guowenzhang/dsh-whiteboard",
   "version": "0.2.0",
-  "description": "Plugin-owned whiteboards with a card gallery and fullscreen draw.io editing for DeepSeek Harness",
+  "description": "Whiteboards for DeepSeek Harness: a board gallery in the main panel and draw.io editing in the Sidebar, with boards stored inside the plugin",
   "type": "module",
   "license": "Apache-2.0",
   "main": "lib/index.mjs",

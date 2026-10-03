@@ -1,6 +1,6 @@
 # dsh-whiteboard
 
-A DeepSeek Harness Web plugin: the main panel keeps the whiteboard card gallery while drawioedit edits the selected board in the right Sidebar, so the list and the editor stay side by side. Diagrams live in this plugin's `files/` directory; no workspace selection is needed. A dedicated session grants write access to this directory.
+Whiteboards for DeepSeek Harness: a board gallery in the main panel and draw.io editing in the Sidebar, with boards stored inside the plugin. No workspace selection is needed: a dedicated session grants write access to the plugin's `files/` directory.
 
 ## Install
 
