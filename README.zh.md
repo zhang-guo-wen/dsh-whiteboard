@@ -2,6 +2,14 @@
 
 为 DeepSeek Harness 提供白板：主面板是白板卡片列表，右侧边栏用 draw.io 编辑，白板文件保存在插件内。无需选择工作区：白板为该目录创建专用会话并授予写入权限。
 
+## 界面截图
+
+![白板列表与名称搜索](docs/images/gallery.png)
+
+![新建白板对话框](docs/images/new-board.png)
+
+![在 draw.io 中编辑白板](docs/images/editor.png)
+
 ## 安装
 
 先安装并启用 [`@guowenzhang/dsh-drawioedit`](../dsh-drawioedit)，再安装本插件：

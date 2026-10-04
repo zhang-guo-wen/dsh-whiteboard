@@ -2,6 +2,14 @@
 
 Whiteboards for DeepSeek Harness: a board gallery in the main panel and draw.io editing in the Sidebar, with boards stored inside the plugin. No workspace selection is needed: a dedicated session grants write access to the plugin's `files/` directory.
 
+## Screenshots
+
+![Whiteboard gallery with name search](docs/images/gallery.png)
+
+![New whiteboard dialog](docs/images/new-board.png)
+
+![Editing a board in draw.io](docs/images/editor.png)
+
 ## Install
 
 Install and enable [`@guowenzhang/dsh-drawioedit`](../dsh-drawioedit) first, then this plugin:
