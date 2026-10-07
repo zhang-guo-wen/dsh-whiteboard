@@ -15,6 +15,7 @@ import { REMOTE_NAMESPACE, TYPERT_REMOTE } from '../remote.ts'
 import { en, NS, zh, type WhiteboardKey } from './locales.ts'
 import { boardToRestore, clearLastBoard, readLastBoard, writeLastBoard } from './last-board.ts'
 import { WhiteboardPanel, type WhiteboardFace } from './WhiteboardPanel.tsx'
+import { installBoardSessionPanel, readBoardSession, writeBoardSession } from './board-session.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { whiteboard: WhiteboardKey }
@@ -53,7 +54,8 @@ export async function apply(ctx: Context): Promise<void> {
     return service
   }
   const sessions = ctx.sessions as unknown as ISessions
-  let lastSessionId: Awaited<ReturnType<typeof sessions.create>> | undefined
+  let lastSessionId = readBoardSession() as Awaited<ReturnType<typeof sessions.create>> | undefined
+  let syncBoardPanel = () => {}
 
   /** One open tab as the Sidebar's inventory publishes it. */
   type OpenTab = ReturnType<typeof ctx.sidebarRight.openTabs.getSnapshot>[number]
@@ -83,12 +85,14 @@ export async function apply(ctx: Context): Promise<void> {
       if (!sessionId) sessionId = await sessions.create({ cwd: board.directory })
       await unwrap(remote().grantBoardSession({ sessionId }))
       lastSessionId = sessionId
+      writeBoardSession(sessionId)
+      syncBoardPanel()
       // The board has to be remembered before the column opens: a collapse or a
       // new session attempt in between must not lose which board was being edited.
       writeLastBoard(board)
-      // Selecting a Session also shows its Conversation in the middle column. This
-      // page's gallery gives way to the editor on the first board of a Session;
-      // later boards in that Session reuse it, so nothing has to switch again.
+      // Keep the Host's Conversation key selected so its rightbar stays mounted.
+      // Our dedicated Session shadows only that key's body with the board list;
+      // leaving fullscreen reveals the gallery without another navigation.
       if (ctx.sidebarRight.mounted.getSnapshot() !== sessionId) {
         ctx.uiWorkspace.openSession(sessionId)
         // A column that never binds this Session must not swallow the board: the
@@ -125,6 +129,7 @@ export async function apply(ctx: Context): Promise<void> {
       return 'reopened'
     },
   }
+  syncBoardPanel = installBoardSessionPanel(ctx, id => id === lastSessionId, face)
   ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'whiteboard', locale: NS, inject: () => face }, WhiteboardPanel))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist', id: 'whiteboard', order: 26, label: () => t('nav'),

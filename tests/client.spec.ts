@@ -13,7 +13,7 @@ describe('whiteboard client registration', () => {
       locale: { register: () => () => {}, bind: () => (key: string) => key },
       get: () => ({ createBoard: async () => { creates++; return { ok: true, value: {} } } }),
       sidebarRightTabs: { get: () => undefined },
-      sidebarRight: { registerCloseHandler: () => () => {} },
+      sidebarRight: { mounted: { getSnapshot: () => undefined, subscribe: () => () => {} }, registerCloseHandler: () => () => {} },
       slots: {
         inject: (_name: string, effect: () => void) => effect(),
         register: (options: { name: string; inject?: () => WhiteboardFace }) => {
