@@ -1,37 +1,38 @@
 # dsh-whiteboard
 
-Whiteboards for DeepSeek Harness: a board gallery in the main panel and draw.io editing in the Sidebar, with boards stored inside the plugin. No workspace selection is needed: a dedicated session grants write access to the plugin's `files/` directory.
+English | [中文](README.zh.md)
+
+## Why I built this plugin
+
+I often need somewhere to jot down drafts while thinking. I used to do that in documents, but now that AI tools are part of my everyday workflow, I wanted that space right inside DeepSeek Harness. A whiteboard is more flexible for sketching ideas and mapping out processes. It uses the open `.drawio` file format, so boards can also be edited in draw.io and other compatible tools.
 
 ## Screenshots
 
 ![Whiteboard gallery with name search](docs/images/gallery.png)
 
-![New whiteboard dialog](docs/images/new-board.png)
+![New whiteboard](docs/images/new-board.png)
 
-![Editing a board in draw.io](docs/images/editor.png)
+![Whiteboard editor](docs/images/editor.png)
+
+The editor screenshot shows an earlier version. The current version keeps the gallery visible beside the editor.
 
 ## Install
 
-Install and enable [`@guowenzhang/dsh-drawioedit`](../dsh-drawioedit) first, then this plugin:
+Install the editor dependency first, then the whiteboard plugin:
 
 ```sh
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-drawioedit
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-whiteboard
 ```
 
-From the npm registry: <https://www.npmjs.com/package/@guowenzhang/dsh-whiteboard> — restart the host afterwards; local checkouts, git sources and troubleshooting are in [AGENTS.md](AGENTS.md).
+Restart DSH Web, open **Whiteboards** in the left navigation, and click **New whiteboard** to confirm a name and get started. Click an existing card to continue editing.
 
-Restart DSH Web and open **Whiteboards** in the left navigation. **New whiteboard** first opens a dialog with an editable timestamp-based name. Only **Create** writes the `.drawio` file under the plugin's `files/` directory and opens it in drawioedit. Drawioedit autosaves changes. Each card shows its name, a first-page preview, and last modification time. Click the card to edit, or click the top-right X and confirm to delete the file. The persistent search box in the toolbar filters the loaded cards by name and shows an empty-result hint when nothing matches. Returning to the **Whiteboards** page goes straight back to the board whose editor tab is still open — collapsing the Sidebar or switching pages keeps it — and only an explicit tab close, a deleted board or a replaced file leaves you on the gallery. Oversized or unreadable diagrams show a preview placeholder. On desktop, opening a board expands the editor column to fullscreen so draw.io can show its own left shapes palette and right format panel; leaving fullscreen shows the board gallery on the left and keeps the current editor on the right, rather than exposing a blank Conversation. Collapsing the editor also keeps the gallery available; click a card to continue editing.
+## Notes
 
-New whiteboards have a single `.drawio` file. Legacy UUID files and their sidecars remain visible. Back up `files/` before replacing or uninstalling the plugin.
+- The editor saves your drawings automatically; no manual saving is needed.
+- Boards are stored in the plugin's `files/` directory, not the current workspace. Back up that directory before updating, replacing, or uninstalling the plugin.
+- Deleting a board removes its file, so check before confirming.
 
-## Development
+## License
 
-```sh
-npm ci --legacy-peer-deps
-npm run typecheck
-npm run build
-npm test
-```
-
-Commit the generated `lib/` with source changes. `dsh-drawioedit` supplies the editor assets at runtime.
+[Apache-2.0](LICENSE). See [NOTICE](NOTICE) for third-party notices.

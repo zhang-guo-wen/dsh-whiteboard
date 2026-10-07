@@ -1,37 +1,38 @@
 # dsh-whiteboard
 
-为 DeepSeek Harness 提供白板：主面板是白板卡片列表，右侧边栏用 draw.io 编辑，白板文件保存在插件内。无需选择工作区：白板为该目录创建专用会话并授予写入权限。
+[English](README.md) | 中文
 
-## 界面截图
+## 为什么做这个插件
+
+我在思考时，经常需要一个地方记录草稿，以前一般会写在文档里。现在全面使用 AI 工具，就把这个空间直接集成到了 DeepSeek Harness 中。白板比文档更灵活，适合随手记录想法、梳理流程；采用开放的 `.drawio` 文件格式，也方便在 draw.io 等兼容工具中继续编辑。
+
+## 截图
 
 ![白板列表与名称搜索](docs/images/gallery.png)
 
-![新建白板对话框](docs/images/new-board.png)
+![新建白板](docs/images/new-board.png)
 
-![在 draw.io 中编辑白板](docs/images/editor.png)
+![白板编辑器](docs/images/editor.png)
+
+编辑器截图来自旧版；当前版本在编辑器旁保留白板列表。
 
 ## 安装
 
-先安装并启用 [`@guowenzhang/dsh-drawioedit`](../dsh-drawioedit)，再安装本插件：
+先安装编辑器依赖，再安装白板插件：
 
 ```sh
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-drawioedit
 npx @deepseek-ai/dsh plugin --profile web add @guowenzhang/dsh-whiteboard
 ```
 
-来自 npm 官方源：<https://www.npmjs.com/package/@guowenzhang/dsh-whiteboard>。装完重启宿主；本地目录开发安装、git 源与排查见 [AGENTS.md](AGENTS.md)。
+重启 DSH Web，打开左侧“白板”，点击“新建白板”并确认名称即可开始；点击已有卡片可继续编辑。
 
-重启 DSH Web 后，打开左侧导航中的“白板”。点击“新建白板”会先显示命名对话框，默认填入时间名称，可直接修改；只有点击“确认创建”才会在插件 `files/` 目录创建 `.drawio` 文件并交给 drawioedit 打开。绘图内容由 drawioedit 自动保存。卡片显示名称、第一页缩略图和最近修改时间；点击卡片可继续编辑，点击右上角叉号并确认可删除文件。工具条上的搜索框按名称筛选当前卡片列表，不匹配时显示空结果提示。再次进入“白板”页时，如果上一块白板的编辑标签仍开着（只是收起过侧边栏或切到过别的页面），会直接回到那块白板；只有主动关闭标签、或该文件已被删除或替换，才会停在白板列表。过大或无法解析的图表显示预览占位内容。桌面端打开白板时右侧编辑列展开为全屏，编辑器可以完整显示自己的左侧形状面板和右侧格式面板；取消全屏后，左侧显示白板列表、右侧保留当前编辑器，不会露出“新建会话”页面；收起编辑列时也保留白板列表，再点卡片可继续编辑。
+## 注意事项
 
-新白板只有一个 `.drawio` 文件；旧版 UUID 文件和元数据仍可显示。替换或卸载插件前请备份 `files/` 目录。
+- 绘图内容由编辑器自动保存，无需手动保存。
+- 白板保存在插件的 `files/` 目录，不在当前工作区；更新、替换或卸载插件前请备份该目录。
+- 删除白板会删除对应文件，请确认后再操作。
 
-## 开发
+## 许可
 
-```sh
-npm ci --legacy-peer-deps
-npm run typecheck
-npm run build
-npm test
-```
-
-修改源码后须重新构建并提交 `lib/`。`dsh-drawioedit` 在运行时提供编辑器资源。
+[Apache-2.0](LICENSE)，第三方组件声明见 [NOTICE](NOTICE)。
