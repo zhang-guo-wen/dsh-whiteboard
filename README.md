@@ -6,6 +6,8 @@ English | [中文](README.zh.md)
 
 I often need somewhere to jot down drafts while thinking. I used to do that in documents, but now that AI tools are part of my everyday workflow, I wanted that space right inside DeepSeek Harness. A whiteboard is more flexible for sketching ideas and mapping out processes. It uses the open `.drawio` file format, so boards can also be edited in draw.io and other compatible tools.
 
+In the plugin list, display names and descriptions follow the Harness language setting in English or Chinese (English is the default fallback); English names use the package name without its npm scope, Chinese names describe the purpose, and installation still uses the unchanged real package name.
+
 ## Screenshots
 
 ![Whiteboard gallery with name search](docs/images/gallery.png)
