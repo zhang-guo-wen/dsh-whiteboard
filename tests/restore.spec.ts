@@ -34,13 +34,14 @@ interface Harness {
 }
 
 /** A client context wired far enough to exercise the restore path. */
-async function harness(options: { mounted?: string | undefined; openTabs?: unknown[]; activeTab?: unknown } = {}): Promise<Harness> {
+async function harness(options: { mounted?: string | undefined; openTabs?: unknown[]; activeTab?: unknown; catalogCwd?: string } = {}): Promise<Harness> {
   const calls: Harness['calls'] = []
   const openings: Harness['openings'] = []
   const focuses: string[] = []
   const sessionOpens: string[] = []
   const closes: Harness['closes'] = []
   const closeHandlers: Harness['closeHandlers'] = new Map()
+  const liveSessions = new Set<string>()
   let face: WhiteboardFace | undefined
   const ctx = {
     remote: { $mount: async () => () => {} },
@@ -51,11 +52,22 @@ async function harness(options: { mounted?: string | undefined; openTabs?: unkno
       createBoard: async (...args: unknown[]) => { calls.push({ method: 'createBoard', args }); return { ok: true, value: board } },
       previewBoard: async (...args: unknown[]) => { calls.push({ method: 'previewBoard', args }); return { ok: true, value: null } },
       deleteBoard: async (...args: unknown[]) => { calls.push({ method: 'deleteBoard', args }); return { ok: true, value: undefined } },
-      grantBoardSession: async (...args: unknown[]) => { calls.push({ method: 'grantBoardSession', args }); return { ok: true, value: undefined } },
+      grantBoardSession: async (...args: unknown[]) => {
+        calls.push({ method: 'grantBoardSession', args })
+        if (!liveSessions.has((args[0] as { sessionId: string }).sessionId)) {
+          return { ok: false, error: { message: 'Whiteboard session must belong to the plugin files directory' } }
+        }
+        return { ok: true, value: undefined }
+      },
     }),
     sessions: {
-      list: { getSnapshot: () => ({ byId: {} }) },
-      create: async (options: unknown) => { calls.push({ method: 'sessionCreate', args: [options] }); return 'session-1' },
+      list: { getSnapshot: () => ({ byId: options.catalogCwd === undefined ? {} : { 'session-old': { cwd: options.catalogCwd } } }) },
+      create: async (request: { cwd: string; sessionId?: string }) => {
+        calls.push({ method: 'sessionCreate', args: [request] })
+        const id = request.sessionId ?? 'session-1'
+        liveSessions.add(id)
+        return id
+      },
     },
     uiWorkspace: { openSession: (id: string) => { sessionOpens.push(id) } },
     sidebarRightTabs: { get: () => ({ kind: 'drawio-edit' }) },
@@ -111,6 +123,38 @@ describe('whiteboard restore', () => {
       // The editor column is already on this Session (the recorded board), so no
       // Session switch is needed to bring the board back.
       expect(test.sessionOpens).toEqual([])
+    } finally {
+      Object.assign(globalThis, { window: previousWindow })
+    }
+  })
+
+  it('adopts a catalogued but cold whiteboard session before granting access', async () => {
+    const storage = withStorage()
+    try {
+      storage.setItem('dsh.whiteboard.v1.session', 'session-old')
+      const test = await harness({ mounted: 'session-old', catalogCwd: board.directory })
+      await test.face.open(board)
+      expect(test.calls).toEqual([
+        { method: 'sessionCreate', args: [{ cwd: board.directory, sessionId: 'session-old' }] },
+        { method: 'grantBoardSession', args: [{ sessionId: 'session-old' }] },
+      ])
+      expect(test.openings).toHaveLength(1)
+    } finally {
+      Object.assign(globalThis, { window: previousWindow })
+    }
+  })
+
+  it('does not adopt a remembered session from another directory', async () => {
+    const storage = withStorage()
+    try {
+      storage.setItem('dsh.whiteboard.v1.session', 'session-old')
+      const test = await harness({ catalogCwd: 'C:\\other\\files' })
+      await test.face.open(board)
+      expect(test.calls).toEqual([
+        { method: 'sessionCreate', args: [{ cwd: board.directory }] },
+        { method: 'grantBoardSession', args: [{ sessionId: 'session-1' }] },
+      ])
+      expect(storage.getItem('dsh.whiteboard.v1.session')).toBe('session-1')
     } finally {
       Object.assign(globalThis, { window: previousWindow })
     }

@@ -81,8 +81,10 @@ export async function apply(ctx: Context): Promise<void> {
     open: async board => {
       if (!ctx.sidebarRightTabs.get('drawio-edit')) throw new Error(t('editorMissing'))
       const catalog = sessions.list.getSnapshot().byId
-      let sessionId = lastSessionId && catalog[lastSessionId] ? lastSessionId : undefined
-      if (!sessionId) sessionId = await sessions.create({ cwd: board.directory })
+      // A catalogued Session may be cold after a Host restart. Explicit-id create
+      // adopts it into the live store before grantBoardSession checks ownership.
+      const reusableId = lastSessionId && catalog[lastSessionId]?.cwd === board.directory ? lastSessionId : undefined
+      const sessionId = await sessions.create({ cwd: board.directory, ...(reusableId ? { sessionId: reusableId } : {}) })
       await unwrap(remote().grantBoardSession({ sessionId }))
       lastSessionId = sessionId
       writeBoardSession(sessionId)
