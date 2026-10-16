@@ -14,8 +14,17 @@ import type { BoardIdRequest, BoardRecord, CreateBoardRequest, DeleteBoardReques
 import { REMOTE_NAMESPACE, TYPERT_REMOTE } from '../remote.ts'
 import { en, NS, zh, type WhiteboardKey } from './locales.ts'
 import { boardToRestore, clearLastBoard, readLastBoard, writeLastBoard } from './last-board.ts'
+import { createBoardPreviewCache } from './board-preview-cache.ts'
+import { renderBoardPreviewLazily } from './preview-renderer.ts'
 import { WhiteboardPanel, type WhiteboardFace } from './WhiteboardPanel.tsx'
 import { installBoardSessionPanel, readBoardSession, writeBoardSession } from './board-session.ts'
+
+/**
+ * Rendered previews kept for the lifetime of the plugin. The gallery mounts and
+ * unmounts with the main panel, so the store has to outlive a mount to stop a
+ * return to the page from regenerating every picture.
+ */
+const PREVIEW_CACHE_CAPACITY = 24
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { whiteboard: WhiteboardKey }
@@ -54,6 +63,11 @@ export async function apply(ctx: Context): Promise<void> {
     return service
   }
   const sessions = ctx.sessions as unknown as ISessions
+  const previews = createBoardPreviewCache({
+    capacity: PREVIEW_CACHE_CAPACITY,
+    load: id => unwrap(remote().previewBoard({ id })),
+    render: renderBoardPreviewLazily,
+  })
   let lastSessionId = readBoardSession() as Awaited<ReturnType<typeof sessions.create>> | undefined
   let syncBoardPanel = () => {}
 
@@ -70,7 +84,8 @@ export async function apply(ctx: Context): Promise<void> {
 
   const face: WhiteboardFace = {
     list: () => unwrap(remote().listBoards()),
-    preview: id => unwrap(remote().previewBoard({ id })),
+    previewImage: board => previews.preview(board),
+    cachedPreviewImage: board => previews.peek(board),
     remove: (id, expectedUpdatedAt) => unwrap(remote().deleteBoard({ id, expectedUpdatedAt })),
     create: async name => {
       if (!ctx.sidebarRightTabs.get('drawio-edit')) throw new Error(t('editorMissing'))

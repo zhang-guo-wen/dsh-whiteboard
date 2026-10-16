@@ -1,9 +1,17 @@
 // build-client.mjs — bundle src/client into the DSH client-loader handoff format.
-// window.__ModuleLoader__.load({ id, factory }). React external; browser-safe utilities bundled.
+// window.__ModuleLoader__.load({ id, chunk?, factory }). React external; browser-safe utilities bundled.
 // CSS modules compiled with lightningcss; `.module.css` -> hashed class map + <style> inject.
+//
+// The entry stays small and self-contained: the draw.io renderer is behind the
+// source's own `import()` in preview-renderer.ts, which rolldown emits as the
+// sibling chunk `client.board-preview.js`. The Client module loader serves
+// package-local chunks through a factory's `require.async`, so the compiler's
+// deferred `require()` is rewritten to that operation; a synchronous relative
+// `require("./client*.js")` would be a runtime miss, and the entry must not keep
+// one.
 import { rolldown } from 'rolldown'
 import { transform } from 'lightningcss'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -14,9 +22,16 @@ const HANDOFF_ID = '@guowenzhang/dsh-whiteboard'
 const VIRT = '\0dsh-css:'
 const SUFFIX = '.mjs'
 
-const banner = 'window.__ModuleLoader__.load({ id: ' + JSON.stringify(HANDOFF_ID) + ', factory: (require) => {'
+/** One package-local chunk, in the shape the module loader accepts. */
+const CHUNK_FILE = /^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/
+
 const footer = 'return module.exports; } });'
 const intro = 'var module = { exports: {} }; var exports = module.exports;'
+
+function registration(fileName, isEntry) {
+  const chunk = isEntry ? '' : `chunk: ${JSON.stringify(fileName)}, `
+  return `window.__ModuleLoader__.load({ id: ${JSON.stringify(HANDOFF_ID)}, ${chunk}factory: (require) => {`
+}
 
 const cssModulePlugin = {
   name: 'dsh-css-modules-inline',
@@ -60,13 +75,75 @@ const cssModulePlugin = {
   },
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Route package-local dynamic chunks through the loader's asynchronous require.
+ * Rolldown renders `import('./x.ts')` in CJS output as a deferred synchronous
+ * `require`, which resolves nothing: a chunk is a separate script the loader has
+ * to fetch first, and only the factory's `require.async` does that.
+ */
+function asyncChunkRequirePlugin() {
+  return {
+    name: 'dsh-client-async-chunk-require',
+    renderChunk(code, chunk, outputOptions) {
+      if (outputOptions.format !== 'cjs') return null
+      const replacements = []
+      for (const dynamicImport of chunk.dynamicImports) {
+        const fileName = dynamicImport.startsWith('./') ? dynamicImport.slice(2) : dynamicImport
+        if (!CHUNK_FILE.test(fileName)) continue
+        const specifier = `./${fileName}`
+        const deferred = new RegExp(
+          `Promise\\.resolve\\(\\)\\.then\\(\\(\\)\\s*=>\\s*require\\((['"])${escapeRegExp(specifier)}\\1\\)\\)`,
+          'gu',
+        )
+        const matches = [...code.matchAll(deferred)]
+        if (matches.length === 0) {
+          throw new Error(`client bundle compiler: dynamic chunk ${JSON.stringify(specifier)} has no generated import expression`)
+        }
+        for (const match of matches) {
+          replacements.push({ at: match.index, length: match[0].length, call: `require.async(${JSON.stringify(specifier)})` })
+        }
+      }
+      if (replacements.length === 0) return null
+      let next = ''
+      let cursor = 0
+      for (const replacement of replacements.sort((left, right) => left.at - right.at)) {
+        next += code.slice(cursor, replacement.at) + replacement.call
+        cursor = replacement.at + replacement.length
+      }
+      return next + code.slice(cursor)
+    },
+  }
+}
+
+const lib = join(root, 'lib')
 const bundle = await rolldown({
-  input: join(root, 'src', 'client', 'index.tsx'),
+  input: { client: join(root, 'src', 'client', 'index.tsx') },
   platform: 'browser',
   external: [/^react$/, /^react\//],
-  plugins: [cssModulePlugin],
+  plugins: [cssModulePlugin, asyncChunkRequirePlugin()],
 })
-await bundle.write({ format: 'cjs', file: join(root, 'lib', 'client.js'), banner, footer, intro, sourcemap: false })
-console.log('lib/client.js written (ModuleLoader handoff bundle)')
-
-
+const written = await bundle.write({
+  format: 'cjs',
+  dir: lib,
+  entryFileNames: 'client.js',
+  // The imported source basename becomes the published chunk name, so the
+  // `files` entry for `lib` already ships it.
+  chunkFileNames: 'client.[name].js',
+  banner: chunk => registration(chunk.fileName, chunk.isEntry),
+  footer,
+  intro,
+  sourcemap: false,
+})
+// Entry and every chunk are rewritten by the same run, so stale outputs are
+// swept only after a successful write: a failed build leaves the tracked
+// artifacts it did not replace exactly as they were.
+const emitted = new Set(written.output.map(output => output.fileName))
+for (const entry of await readdir(lib).catch(() => [])) {
+  if (!/^client(\.[^/]+)?\.js$/.test(entry) || emitted.has(entry)) continue
+  await rm(join(lib, entry), { force: true })
+}
+console.log(`lib/${[...emitted].sort().join(', lib/')} written (ModuleLoader handoff bundle)`)

@@ -75,7 +75,9 @@ describe('whiteboard client registration', () => {
       await apply(ctx)
       expect(await face?.list()).toEqual([board])
       expect(await face?.create('系统架构')).toEqual(board)
-      expect(await face?.preview(board.id)).toBe('<mxGraphModel />')
+      // The image itself is drawn through the DOM, which this Node suite does not
+      // run; what it owns is that the face still asks the Host for the source.
+      await face?.previewImage(board).catch(() => undefined)
       await face?.remove(board.id, board.updatedAt)
       await face!.open(board)
       expect(calls).toEqual([
