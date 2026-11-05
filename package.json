@@ -1,6 +1,7 @@
 {
   "name": "@guowenzhang/dsh-whiteboard",
   "version": "0.4.0",
+  "packageManager": "pnpm@11.28.9",
   "description": "Whiteboards for DeepSeek Harness: a board gallery in the main panel and draw.io editing in the Sidebar, with boards stored inside the plugin",
   "type": "module",
   "license": "Apache-2.0",
